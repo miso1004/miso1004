@@ -33,4 +33,4 @@ def get_chrome_history_all():
 
 if __name__ == "__main__":
     get_chrome_history_all()
-    print("결과.txt 파일에 저장 완료")
+    print("결과.txt 파일에 저장 완료되었습니다.")
