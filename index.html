@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multilingual Simultaneous Translator</title>
+    <style>
+        :root {
+            /* 애플 특유의 미니멀한 컬러 팔레트 */
+            --bg-color: #f5f5f7;
+            --card-bg: rgba(255, 255, 255, 0.8);
+            --card-stroke: rgba(0, 0, 0, 0.08);
+            --text-main: #1d1d1f;
+            --text-secondary: #86868b;
+            --accent-color: #0071e3;
+            --accent-hover: #0077ed;
+            --shortcut-bg: #e8e8ed;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 30px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 1040px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .results-section {
+            order: 1;
+            margin-bottom: 35px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 24px;
+        }
+
+        .result-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-stroke);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.03);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .result-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.06);
+        }
+
+        .result-card.merged {
+            border: 1px solid rgba(0, 113, 227, 0.3);
+            background: rgba(245, 245, 247, 0.6);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 16px;
+        }
+
+        .country-name {
+            font-weight: 600;
+            font-size: 17px;
+            letter-spacing: -0.01em;
+        }
+
+        .lang-badge {
+            background-color: rgba(0, 0, 0, 0.05);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: background-color 0.15s ease, color 0.15s ease, transform 0.1s ease;
+            user-select: none;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .lang-badge:hover {
+            background-color: rgba(0, 113, 227, 0.1);
+            color: var(--accent-color);
+        }
+
+        .lang-badge:active {
+            transform: scale(0.95);
+        }
+
+        .translation-output {
+            font-size: 16px;
+            line-height: 1.55;
+            min-height: 60px;
+            color: #333336;
+            white-space: pre-wrap;
+        }
+
+        .input-section {
+            order: 2;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-stroke);
+            border-radius: 24px;
+            padding: 18px 24px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04);
+            margin-top: 15px;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .input-section.flash-signal {
+            border-color: var(--accent-color);
+            box-shadow: 0 0 15px rgba(0, 113, 227, 0.2);
+        }
+
+        .textarea-wrapper {
+            display: flex;
+            align-items: flex-end;
+            position: relative;
+            gap: 12px;
+        }
+
+        textarea {
+            flex: 1;
+            height: 26px;
+            max-height: 200px;
+            padding: 0;
+            box-sizing: border-box;
+            border: none;
+            background: transparent;
+            font-family: inherit;
+            font-size: 17px;
+            color: var(--text-main);
+            resize: none;
+            outline: none;
+            line-height: 1.5;
+            overflow-y: hidden;
+        }
+
+        textarea::placeholder {
+            color: var(--text-secondary);
+            opacity: 0.7;
+        }
+
+        .mic-btn {
+            background: none;
+            border: none;
+            padding: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-secondary);
+            transition: color 0.2s ease, transform 0.1s ease;
+            outline: none;
+        }
+
+        .mic-btn:hover {
+            color: var(--accent-color);
+        }
+
+        .mic-btn:active {
+            transform: scale(0.9);
+        }
+
+        .input-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        .shortcut-guide {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        kbd {
+            background: var(--shortcut-bg);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-size: 11px;
+            font-family: inherit;
+            color: var(--text-main);
+            box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+        }
+
+        .translate-btn {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            padding: 8px 20px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: background-color 0.15s ease, transform 0.1s ease;
+            box-shadow: 0 2px 8px rgba(0, 113, 227, 0.15);
+        }
+
+        .translate-btn:hover {
+            background-color: var(--accent-hover);
+        }
+        
+        .translate-btn:active {
+            transform: scale(0.98);
+        }
+
+        .loading {
+            color: var(--text-secondary);
+            font-style: normal;
+            opacity: 0.6;
+            animation: pulse 1.5s infinite ease-in-out;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 0.4; }
+            50% { opacity: 0.8; }
+            100% { opacity: 0.4; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="results-section">
+        <div class="results-grid" id="resultsGrid"></div>
+    </div>
+
+    <div class="input-section" id="inputPanel">
+        <div class="textarea-wrapper">
+            <textarea id="sourceText" rows="1" placeholder="타이핑하거나 마이크 단추를 클릭 후 Win + H 를 눌러 말씀하세요..."></textarea>
+            
+            <button id="micBtn" class="mic-btn" title="음성 입력 활성화" onclick="triggerVoiceInput()">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+                    <path d="M19 10v1a7 7 0 0 1-14 0v-1"></path>
+                    <line x1="12" x2="12" y1="19" y2="22"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="input-footer">
+            <div class="shortcut-guide">
+                <span>🎤 Voice Input:</span>
+                <kbd>Win</kbd> + <kbd>H</kbd>
+            </div>
+            <button class="translate-btn" onclick="translateAll()">Translate</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // [업데이트] defaultText 속성을 추가해 국가별 언어로 대기 문구를 매핑했습니다.
+    const targetCountries = [
+        { country: "Uruguay / Argentina", langName: "스페인어", code: "es", ttsCode: "es-ES", defaultText: "El resultado de la traducción se mostrará aquí.", isMerged: true },
+        { country: "Bolivia", langName: "스페인어/케추아/아이마라", code: "es", ttsCode: "es-BO", defaultText: "El resultado de la traducción se mostrará aquí." },
+        { country: "Kyrgyzstan", langName: "키르기스어", code: "ky", ttsCode: "ky-KG", defaultText: "Котормонун жыйынтыгы бул жерде көрсөтүлөт." },
+        { country: "Maldives", langName: "디베히어", code: "dv", ttsCode: "dv-MV", defaultText: "ތަރުޖަމާގެ ނަތީޖާ މިތަނުގައި ދައްކާނެއެވެ." },
+        { country: "Pakistan", langName: "우르두어", code: "ur", ttsCode: "ur-PK", defaultText: "ترجمے کا نتیجہ یہاں ظاہر کیا جائے گا۔" },
+        { country: "Sierra Leone", langName: "영어", code: "en", ttsCode: "en-SL", defaultText: "The translation result will be displayed here." }
+    ];
+
+    const textarea = document.getElementById('sourceText');
+    const inputPanel = document.getElementById('inputPanel');
+
+    function focusInput() {
+        textarea.focus();
+    }
+
+    window.addEventListener('focus', focusInput);
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('.lang-badge') || e.target.closest('.translate-btn') || e.target.closest('#micBtn')) return;
+        focusInput();
+    });
+
+    function triggerVoiceInput() {
+        focusInput();
+        inputPanel.classList.add('flash-signal');
+        setTimeout(() => {
+            inputPanel.classList.remove('flash-signal');
+        }, 300);
+    }
+
+    function speakTranslation(index, ttsCode) {
+        const outputElement = document.getElementById(`output-${index}`);
+        const textToSpeak = outputElement.innerText;
+
+        if (!textToSpeak || textToSpeak.includes('번역 중...')) return;
+
+        window.speechSynthesis.cancel();
+
+        const utterance = new SpeechSynthesisUtterance(textToSpeak);
+        utterance.lang = ttsCode;
+        utterance.rate = 0.95;
+
+        window.speechSynthesis.speak(utterance);
+    }
+
+    // [업데이트] 최초 빌드 시 각 국가 언어 대기 문구(defaultText)가 뿌려지도록 수정
+    function initCards() {
+        const grid = document.getElementById('resultsGrid');
+        grid.innerHTML = '';
+        targetCountries.forEach((item, index) => {
+            const card = document.createElement('div');
+            card.className = `result-card ${item.isMerged ? 'merged' : ''}`;
+            card.innerHTML = `
+                <div class="card-header">
+                    <span class="country-name">${item.country}</span>
+                    <span class="lang-badge" onclick="speakTranslation(${index}, '${item.ttsCode}')" title="원어민 발음 듣기">
+                        🔊 ${item.langName}
+                    </span>
+                </div>
+                <div class="translation-output" id="output-${index}">${item.defaultText}</div>
+            `;
+            grid.appendChild(card);
+        });
+    }
+
+    function autoResizeTextarea() {
+        textarea.style.height = '26px';
+        const scrollHeight = textarea.scrollHeight;
+        if (scrollHeight > 26) {
+            textarea.style.height = scrollHeight + 'px';
+            textarea.style.overflowY = scrollHeight > 200 ? 'auto' : 'hidden';
+        }
+    }
+
+    textarea.addEventListener('input', autoResizeTextarea);
+    textarea.addEventListener('keydown', function(event) {
+        if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); 
+            translateAll(textarea.value); 
+        }
+    });
+
+    async function translateText(text, targetLang) {
+        if (!text.trim()) return "";
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=ko&tl=${targetLang}&dt=t&q=${encodeURIComponent(text)}`;
+        try {
+            const response = await fetch(url);
+            const data = await response.json();
+            return data[0].map(x => x[0]).join('');
+        } catch (error) {
+            return "번역 실패";
+        }
+    }
+
+    async function translateAll(forcedText) {
+        const text = forcedText || textarea.value;
+        if (!text || !text.trim()) return;
+
+        targetCountries.forEach((item, index) => {
+            document.getElementById(`output-${index}`).innerHTML = '<span class="loading">번역 중...</span>';
+        });
+
+        textarea.value = '';
+        textarea.style.height = '26px';
+        textarea.style.overflowY = 'hidden';
+
+        const promises = targetCountries.map(async (item, index) => {
+            const result = await translateText(text, item.code);
+            document.getElementById(`output-${index}`).innerText = result;
+        });
+
+        await Promise.all(promises);
+        focusInput();
+    }
+
+    initCards();
+    window.addEventListener('DOMContentLoaded', () => {
+        focusInput();
+    });
+</script>
+
+</body>
+</html>
